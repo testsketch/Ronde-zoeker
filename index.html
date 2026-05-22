@@ -2287,8 +2287,8 @@ function zoek(){
 let matches = data
   .map(r => ({
     ...r,
-    distance: levenshtein(r.straat, inputStraat),
-    exact: r.straat === inputStraat
+    distance: levenshtein(r.straat.toUpperCase(), straat),
+ exact: r.straat.toUpperCase() === straat
   }))
   .filter(r =>
     r.distance <= 2 &&
@@ -2296,7 +2296,7 @@ let matches = data
     nummer >= r.min &&
     nummer <= r.max
   );
-``
+const hasExact = matches.some(m => m.exact);
 let besteStraat = null;
 let besteScore = Infinity;
 
@@ -2312,6 +2312,10 @@ data.forEach(r => {
 
 let tekst = "Straat: " + besteStraat + "<br><br>Resultaten:<br>";
 
+if (!hasExact || matches.length > 1) {
+        tekst += "⚠️ Mogelijk fuzzy match gebruikt (gelijkaardige straat)<br><br>";
+    }
+
 
         matches.forEach(m => {
             tekst += m.gemeente + " → " + m.round + "<br>";
@@ -2325,7 +2329,9 @@ let tekst = "Straat: " + besteStraat + "<br><br>Resultaten:<br>";
     let candidates = data.filter(r =>
         levenshtein(r.straat.toUpperCase(), straat) <= 2 &&
         r.type === type
+     
     );
+    const hasExact = false; // want je zit hier al in "geen exacte match"
 
     let bestResults = [];
     let minDist = Infinity;
@@ -2347,7 +2353,7 @@ let tekst = "Straat: " + besteStraat + "<br><br>Resultaten:<br>";
     if(bestResults.length > 0){
 
 let tekst = "Straat: " + besteStraat + "<br><br>Dichtstbij:<br>";
-
+  tekst += "⚠️ Resultaat via fuzzy match (gelijkaardige straat)<br><br>";
 
         bestResults.forEach(m => {
             tekst += m.gemeente + " → " + m.round + "<br>";
