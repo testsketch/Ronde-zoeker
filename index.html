@@ -2161,25 +2161,22 @@ function loadData(){
 
     let cleaned = rawData
         .replace(/\r/g, "")
-        .replace(/\n+/g, "\n") // lijnen netjes maken
+        .replace(/\n+/g, "\n");
 
     let rows = cleaned.split("\n");
     let result = [];
 
     rows.forEach((row, index) => {
         row = row.trim();
-
         if(row === "") return;
 
         try {
-            // keys quotes toevoegen
             let fixed = row
                 .replace(/(\w+):/g, '"$1":')
-                .replace(/,$/, ""); // trailing comma weg
+                .replace(/,$/, "");
 
             let obj = JSON.parse(fixed);
 
-            // ✅ alleen geldige rijen houden
             if(
                 obj.straat &&
                 obj.round &&
@@ -2197,33 +2194,27 @@ function loadData(){
 
     return result;
 }
+
+// ✅ SPRAAK
 function spraak(){
 
-    // ✅ controle of browser het ondersteunt
     let SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if(!SpeechRecognition){
-        alert("Spraakherkenning wordt niet ondersteund in deze browser");
+        alert("Spraakherkenning niet ondersteund");
         return;
     }
 
     let rec = new SpeechRecognition();
-
-    rec.lang = "nl-BE";   // Belgisch Nederlands
-    rec.interimResults = false;
+    rec.lang = "nl-BE";
 
     rec.onresult = function(e){
         let tekst = e.results[0][0].transcript;
-
-        // ✅ zet tekst in input
         document.getElementById("input").value = tekst;
-
-        // ✅ automatisch zoeken
         zoek();
     };
 
-    rec.onerror = function(e){
-        console.error(e);
+    rec.onerror = function(){
         alert("Fout bij spraakherkenning");
     };
 
@@ -2233,7 +2224,7 @@ function spraak(){
 const data = loadData();
 
 
-// ✅ helpers
+// ✅ HELPERS
 function extractNumber(str){
     let m = str.match(/\d+/);
     return m ? parseInt(m[0]) : null;
@@ -2244,23 +2235,22 @@ function extractStreet(str){
 }
 
 
-// ✅ zoekfunctie
-
+// ✅ LEVENSHTEIN
 function levenshtein(a, b){
     let matrix = [];
 
-    for(let i=0;i<=b.length;i++){ matrix[i]=[i]; }
-    for(let j=0;j<=a.length;j++){ matrix[0][j]=j; }
+    for(let i = 0; i <= b.length; i++){ matrix[i] = [i]; }
+    for(let j = 0; j <= a.length; j++){ matrix[0][j] = j; }
 
-    for(let i=1;i<=b.length;i++){
-        for(let j=1;j<=a.length;j++){
-            if(b.charAt(i-1) === a.charAt(j-1)){
+    for(let i = 1; i <= b.length; i++){
+        for(let j = 1; j <= a.length; j++){
+            if(b[i-1] === a[j-1]){
                 matrix[i][j] = matrix[i-1][j-1];
             } else {
                 matrix[i][j] = Math.min(
-                    matrix[i-1][j-1]+1,
-                    matrix[i][j-1]+1,
-                    matrix[i-1][j]+1
+                    matrix[i-1][j-1] + 1,
+                    matrix[i][j-1] + 1,
+                    matrix[i-1][j] + 1
                 );
             }
         }
@@ -2269,6 +2259,8 @@ function levenshtein(a, b){
     return matrix[b.length][a.length];
 }
 
+
+// ✅ ZOEKFUNCTIE (VOLLEDIG FIXED)
 function zoek(){
 
     let input = document.getElementById("input").value;
@@ -2283,39 +2275,46 @@ function zoek(){
 
     let type = (nr % 2 === 0) ? "Even" : "Oneven";
 
-    // ✅ ALLE exacte matches vinden
-let matches = data
-  .map(r => ({
-    ...r,
-    distance: levenshtein(r.straat.toUpperCase(), straat),
- exact: r.straat.toUpperCase() === straat
-  }))
-  .filter(r =>
-    r.distance <= 2 &&
-    r.type === type &&
-    nummer >= r.min &&
-    nummer <= r.max
-  );
-const hasExact = matches.some(m => m.exact);
-let besteStraat = null;
-let besteScore = Infinity;
+    // ======================================
+    // ✅ 1. EXACTE MATCH
+    // ======================================
+    let matches = data.filter(r =>
+        r.straat.toUpperCase() === straat &&
+        r.type === type &&
+        nr >= r.min &&
+        nr <= r.max
+    );
 
-data.forEach(r => {
-    let score = levenshtein(r.straat.toUpperCase(), straat);
-    if(score < besteScore){
-        besteScore = score;
-        besteStraat = r.straat.toUpperCase();
+    let hasExact = matches.length > 0;
+
+    // ======================================
+    // ✅ 2. FUZZY ALS NODIG
+    // ======================================
+    if (!hasExact) {
+        matches = data.filter(r =>
+            levenshtein(r.straat.toUpperCase(), straat) <= 2 &&
+            r.type === type &&
+            nr >= r.min &&
+            nr <= r.max
+        );
     }
-});
 
+    // ======================================
+    // ✅ 3. BESTE STRAATNAAM (display)
+    // ======================================
+    let besteStraat = straat;
+
+    // ======================================
+    // ✅ 4. RESULTATEN TONEN
+    // ======================================
     if(matches.length > 0){
 
-let tekst = "Straat: " + besteStraat + "<br><br>Resultaten:<br>";
+        let tekst = "Straat: " + besteStraat + "<br><br>Resultaten:<br>";
 
-if (!hasExact || matches.length > 1) {
-        tekst += "⚠️ Mogelijk fuzzy match gebruikt (gelijkaardige straat)<br><br>";
-    }
-
+        // ✅ fuzzy melding
+        if (!hasExact || matches.length > 1) {
+            tekst += "⚠️ Mogelijk fuzzy match gebruikt (gelijkaardige straat)<br><br>";
+        }
 
         matches.forEach(m => {
             tekst += m.gemeente + " → " + m.round + "<br>";
@@ -2325,13 +2324,13 @@ if (!hasExact || matches.length > 1) {
         return;
     }
 
-    // ✅ GEEN exacte match → dichtstbij zoeken
+    // ======================================
+    // ✅ 5. DICHTSTBIJZIJNDE MATCH
+    // ======================================
     let candidates = data.filter(r =>
         levenshtein(r.straat.toUpperCase(), straat) <= 2 &&
         r.type === type
-     
     );
-    const hasExact = false; // want je zit hier al in "geen exacte match"
 
     let bestResults = [];
     let minDist = Infinity;
@@ -2352,8 +2351,9 @@ if (!hasExact || matches.length > 1) {
 
     if(bestResults.length > 0){
 
-let tekst = "Straat: " + besteStraat + "<br><br>Dichtstbij:<br>";
-  tekst += "⚠️ Resultaat via fuzzy match (gelijkaardige straat)<br><br>";
+        let tekst = "Straat: " + besteStraat + "<br><br>Dichtstbij:<br>";
+
+        tekst += "⚠️ Resultaat via fuzzy match (gelijkaardige straat)<br><br>";
 
         bestResults.forEach(m => {
             tekst += m.gemeente + " → " + m.round + "<br>";
@@ -2361,25 +2361,20 @@ let tekst = "Straat: " + besteStraat + "<br><br>Dichtstbij:<br>";
 
         document.getElementById("resultaat").innerHTML = tekst;
 
-   } else {
-    document.getElementById("resultaat").innerText = "Niet gevonden";
+    } else {
+        document.getElementById("resultaat").innerText = "Niet gevonden";
+    }
+
+    // ✅ reset input
+    let inputField = document.getElementById("input");
+    inputField.value = "";
+    inputField.focus();
 }
 
-// ✅ input opnieuw selecteren
-let inputField = document.getElementById("input");
-inputField.value = "";   // leegmaken
-inputField.focus();
 
-
-}
-
+// ✅ ENTER-toets
 document.getElementById("input").addEventListener("keypress", function(e) {
     if (e.key === "Enter") {
         zoek();
     }
 });
-
-</script>
-
-</body>
-</html>
