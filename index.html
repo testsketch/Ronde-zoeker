@@ -2284,12 +2284,19 @@ function zoek(){
     let type = (nr % 2 === 0) ? "Even" : "Oneven";
 
     // ✅ ALLE exacte matches vinden
-    let matches = data.filter(r =>
-        levenshtein(r.straat.toUpperCase(), straat) <= 2 &&
-        r.type === type &&
-        nr >= r.min &&
-        nr <= r.max
-    );
+let matches = data
+  .map(r => ({
+    ...r,
+    distance: levenshtein(r.straat, inputStraat),
+    exact: r.straat === inputStraat
+  }))
+  .filter(r =>
+    r.distance <= 2 &&
+    r.type === type &&
+    nummer >= r.min &&
+    nummer <= r.max
+  );
+``
 let besteStraat = null;
 let besteScore = Infinity;
 
